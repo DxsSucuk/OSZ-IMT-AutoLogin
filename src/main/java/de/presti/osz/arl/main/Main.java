@@ -1,7 +1,10 @@
 package de.presti.osz.arl.main;
 
 import de.presti.osz.arl.utils.FileUtil;
+import de.presti.osz.arl.utils.LogOutputStream;
 
+import javax.swing.*;
+import java.io.PrintStream;
 import java.net.*;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -10,45 +13,93 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Scanner;
 
-public class Main {
+public class Main extends JFrame {
+
+    JButton actionButton = new JButton("Start");
+    JTextField usernameField = new JTextField();
+    JPasswordField passwordField = new JPasswordField();
+    JTextArea logArea = new JTextArea();
+
+    static Main instance;
+
+    public Main() {
+
+        setLayout(null);
+
+        actionButton.setLocation(25, 450);
+        actionButton.setSize(100, 50);
+        actionButton.setBounds(25, 450, 100, 50);
+        actionButton.addActionListener((actionEvent) -> {
+            if (checkerThread != null && checkerThread.isAlive()) {
+                Main.instance.actionButton.setText("Start");
+                checkerThread.interrupt();
+            } else {
+                Main.instance.actionButton.setText("Stop");
+                startChecker(Main.instance.usernameField.getText(), String.valueOf(Main.instance.passwordField.getPassword()));
+            }
+        });
+
+        add(actionButton);
+
+        JLabel jlabel = new JLabel("Username:");
+        jlabel.setLocation(25, 25);
+        jlabel.setSize(150, 25);
+        jlabel.setBounds(25, 25, 150, 25);
+
+        add(jlabel);
+
+        usernameField.setLocation(25, 50);
+        usernameField.setSize(150, 25);
+        usernameField.setBounds(25, 50, 150, 25);
+
+        add(usernameField);
+
+        JLabel jLabel1 = new JLabel("Password:");
+        jLabel1.setLocation(25, 75);
+        jLabel1.setSize(150, 25);
+        jLabel1.setBounds(25, 75, 150, 25);
+
+        add(jLabel1);
+
+        passwordField.setLocation(25, 100);
+        passwordField.setSize(150, 25);
+        passwordField.setBounds(25, 100, 150, 25);
+
+        add(passwordField);
+
+        logArea.setEditable(false);
+        logArea.setLocation(200, 25);
+        logArea.setSize(575, 525);
+        logArea.setBounds(200, 25, 575, 525);
+
+        add(logArea);
+
+        setResizable(false);
+        setSize(800, 600);
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+
+        setVisible(true);
+    }
 
     static HttpClient httpClient = HttpClient.newHttpClient();
     static FileUtil fileUtil = new FileUtil();
     static Thread checkerThread;
 
     public static void main(String[] args) {
-        String[] creds = fileUtil.getUserData();
-
-        if (creds.length > 0) {
-            startChecker(creds[0], creds[1]);
-            return;
+        instance = new Main();
+        if (fileUtil.getUserData().length > 0) {
+            instance.usernameField.setText(fileUtil.getUserData()[0]);
+            instance.passwordField.setText(fileUtil.getUserData()[1]);
         }
 
-        if (args.length != 2) {
-            System.out.println("ERROR > We did not get any Parameters! Please enter your credits!");
-
-            Scanner scanner = new Scanner(System.in);
-
-            System.out.println("Please enter your Username!");
-
-            String username = scanner.next();
-
-            System.out.println("Please enter your Password!");
-
-            String password = scanner.next();
-
-            startChecker(username, password);
-        } else {
-            startChecker(args[0], args[1]);
-        }
+        System.setOut(new PrintStream(new LogOutputStream(instance.logArea)));
     }
 
     public static void startChecker(String username, String password) {
         fileUtil.saveUserData(username, password);
         checkerThread = new Thread(() -> {
-            while (true) {
+            while (checkerThread != null && !checkerThread.isInterrupted()) {
                 logMeIn(username, password);
                 try {
                     Thread.sleep(Duration.ofSeconds(10).toMillis());
