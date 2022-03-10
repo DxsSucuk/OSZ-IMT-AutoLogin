@@ -99,8 +99,8 @@ public class Main extends JFrame {
     public static void startChecker(String username, String password) {
         fileUtil.saveUserData(username, password);
         checkerThread = new Thread(() -> {
-            while (checkerThread != null && !checkerThread.isInterrupted()) {
-                logMeIn(username, password);
+            while (checkerThread != null && !checkerThread.isInterrupted() && Main.instance.actionButton.getText().equalsIgnoreCase("Stop")) {
+                if (checkerThread.isAlive()) logMeIn(username, password);
                 try {
                     Thread.sleep(Duration.ofSeconds(10).toMillis());
                 } catch (Exception exception) {
@@ -116,10 +116,7 @@ public class Main extends JFrame {
     public static void logMeIn(String username, String password) {
         try {
             System.out.println("INFO > Checking for Login Requirement!");
-            HttpRequest firstDataRequest = HttpRequest.newBuilder()
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59")
-                    .uri(new URL("https://wlan-login.oszimt.de/logon/cgi/index.cgi").toURI())
-                    .GET().build();
+            HttpRequest firstDataRequest = HttpRequest.newBuilder().header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59").uri(new URL("https://wlan-login.oszimt.de/logon/cgi/index.cgi").toURI()).GET().build();
 
             HttpResponse<String> httpResponse = httpClient.send(firstDataRequest, HttpResponse.BodyHandlers.ofString());
 
@@ -136,11 +133,7 @@ public class Main extends JFrame {
                     data.put("pwd", password);
                     data.put("device_infos", "1032:1920:1080:1920");
                     data.put("voucher_logon_btn", "Login");
-                    HttpRequest loginRequest = HttpRequest.newBuilder()
-                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59")
-                            .uri(new URL("https://wlan-login.oszimt.de/logon/cgi/index.cgi").toURI())
-                            .header("Content-Type", "application/x-www-form-urlencoded")
-                            .POST(ofFormData(data)).build();
+                    HttpRequest loginRequest = HttpRequest.newBuilder().header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59").uri(new URL("https://wlan-login.oszimt.de/logon/cgi/index.cgi").toURI()).header("Content-Type", "application/x-www-form-urlencoded").POST(ofFormData(data)).build();
 
                     HttpResponse<String> httpLoginResponse = httpClient.send(loginRequest, HttpResponse.BodyHandlers.ofString());
 
