@@ -116,8 +116,8 @@ public class Main extends JFrame {
         });
 
         switchButton.setLocation(130, 450);
-        switchButton.setSize(100, 50);
-        switchButton.setBounds(130, 450, 50, 50);
+        switchButton.setSize(60, 50);
+        switchButton.setBounds(130, 450, 60, 50);
         switchButton.setFocusPainted(false);
         switchButton.setBorder(new RoundedBorder(20));
         switchButton.addActionListener((actionEvent) -> {
