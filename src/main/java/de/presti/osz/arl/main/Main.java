@@ -4,6 +4,11 @@ import de.presti.osz.arl.utils.FileUtil;
 import de.presti.osz.arl.utils.LogOutputStream;
 
 import javax.swing.*;
+import javax.swing.plaf.nimbus.NimbusLookAndFeel;
+import javax.swing.plaf.synth.SynthLookAndFeel;
+import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.io.PrintStream;
 import java.net.*;
 import java.net.http.HttpClient;
@@ -17,28 +22,115 @@ import java.util.Map;
 public class Main extends JFrame {
 
     JButton actionButton = new JButton("Start");
+    JButton switchButton = new JButton("W");
     JTextField usernameField = new JTextField();
     JPasswordField passwordField = new JPasswordField();
     JTextArea logArea = new JTextArea();
 
+    final PopupMenu popupMenu = new PopupMenu();
+    final SystemTray systemTray = SystemTray.getSystemTray();
+
+    MenuItem showItem = new MenuItem("Show GUI");
+    MenuItem menuItem = new MenuItem("Current Application State:");
+    MenuItem stateItem = new MenuItem("Offline");
+    MenuItem exitItem = new MenuItem("Exit");
+
+    TrayIcon trayIcon;
+
     static Main instance;
 
     public Main() {
+        if (trayIcon == null) {
+            try {
+                ImageIcon imageIcon = new ImageIcon(new URL("https://findicons.com/files/icons/2831/mono_business_2/256/thumbs_up.png"));
+                trayIcon = new TrayIcon(imageIcon.getImage(), "On God?");
+                trayIcon.setImageAutoSize(true);
+            } catch (Exception ignored) {}
+        }
 
+        try {
+            UIManager.setLookAndFeel(new SynthLookAndFeel());
+            UIManager.put("background", new Color(0x121212));
+            UIManager.put("info", new Color(0x121212));
+            UIManager.put("nimbusBase", new Color(18, 30, 49));
+            UIManager.put("nimbusAlertYellow", new Color(248, 187, 0));
+            UIManager.put("nimbusDisabledText", new Color(128, 128, 128));
+            UIManager.put("nimbusFocus", new Color(115, 164, 209));
+            UIManager.put("nimbusGreen", new Color(176, 179, 50));
+            UIManager.put("nimbusInfoBlue", new Color(66, 139, 221));
+            UIManager.put("nimbusLightBackground", new Color(18, 30, 49));
+            UIManager.put("nimbusOrange", new Color(191, 98, 4));
+            UIManager.put("nimbusRed", new Color(169, 46, 34));
+            UIManager.put("nimbusSelectedText", new Color(255, 255, 255));
+            UIManager.put("nimbusSelectionBackground", new Color(104, 93, 156));
+            UIManager.put("text", new Color(230, 230, 230));
+            this.setTitle("OSZ-IMT AutoReLogin");
+            this.setIconImage(Toolkit.getDefaultToolkit().createImage(new URL("https://cdn-icons-png.flaticon.com/512/25/25297.png")));
+            /* Turn off metal's use of bold fonts */
+            UIManager.put("swing.boldMetal", Boolean.FALSE);
+            SwingUtilities.updateComponentTreeUI(this);
+        } catch (Exception ignored) {
+        }
+        this.addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent windowEvent) {
+                setExtendedState(JFrame.ICONIFIED);
+            }
+        });
+
+        updateTrayIcon(true);
+        try {
+            systemTray.add(trayIcon);
+        } catch (Exception ignored) {
+        }
+    }
+
+    public void updateTrayIcon(boolean creation) {
+        stateItem.setLabel(checkerThread != null && checkerThread.isAlive() && !checkerThread.isInterrupted() ? "Running" : "Idle");
+        if (creation) {
+            popupMenu.add(showItem);
+            popupMenu.addSeparator();
+            popupMenu.add(menuItem);
+            popupMenu.add(stateItem);
+            popupMenu.addSeparator();
+            popupMenu.add(exitItem);
+            trayIcon.setPopupMenu(popupMenu);
+            exitItem.addActionListener(listener -> {
+                System.exit(-1);
+            });
+            showItem.addActionListener(listener -> {
+                showUI();
+            });
+        }
+    }
+
+    public void showUI() {
         setLayout(null);
 
         actionButton.setLocation(25, 450);
         actionButton.setSize(100, 50);
         actionButton.setBounds(25, 450, 100, 50);
+        actionButton.setBorder(new RoundedBorder(10));
+        actionButton.setFocusPainted(false);
         actionButton.addActionListener((actionEvent) -> {
-            if (checkerThread != null && checkerThread.isAlive()) {
-                Main.instance.actionButton.setText("Start");
-                checkerThread.interrupt();
+            startChecker(Main.instance.usernameField.getText(), String.valueOf(Main.instance.passwordField.getPassword()));
+        });
+
+        switchButton.setLocation(130, 450);
+        switchButton.setSize(100, 50);
+        switchButton.setBounds(130, 450, 50, 50);
+        switchButton.setFocusPainted(false);
+        switchButton.setBorder(new RoundedBorder(20));
+        switchButton.addActionListener((actionEvent) -> {
+            if (switchButton.getText().equalsIgnoreCase("w")) {
+                switchButton.setText("D");
+                useLightMode();
             } else {
-                Main.instance.actionButton.setText("Stop");
-                startChecker(Main.instance.usernameField.getText(), String.valueOf(Main.instance.passwordField.getPassword()));
+                switchButton.setText("W");
+                useDarkMode();
             }
         });
+
+        add(switchButton);
 
         add(actionButton);
 
@@ -65,6 +157,9 @@ public class Main extends JFrame {
         passwordField.setLocation(25, 100);
         passwordField.setSize(150, 25);
         passwordField.setBounds(25, 100, 150, 25);
+        passwordField.setBackground(Color.DARK_GRAY.darker());
+        passwordField.setBorder(BorderFactory.createEmptyBorder());
+        passwordField.setForeground(Color.WHITE);
 
         add(passwordField);
 
@@ -72,14 +167,15 @@ public class Main extends JFrame {
         logArea.setLocation(200, 25);
         logArea.setSize(575, 525);
         logArea.setBounds(200, 25, 575, 525);
-
+        logArea.setAutoscrolls(true);
         add(logArea);
 
         setResizable(false);
         setSize(800, 600);
-        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
         setVisible(true);
+
+        useDarkMode();
     }
 
     static HttpClient httpClient = HttpClient.newHttpClient();
@@ -93,24 +189,42 @@ public class Main extends JFrame {
             instance.passwordField.setText(fileUtil.getUserData()[1]);
         }
 
+        if ((args.length >= 1 && !args[0].equalsIgnoreCase("silent")) || args.length == 0) instance.showUI();
+
+        if (args.length >= 2 && args[1].equalsIgnoreCase("autorun"))
+            startChecker(instance.usernameField.getText(), new String(instance.passwordField.getPassword()));
+
         System.setOut(new PrintStream(new LogOutputStream(instance.logArea)));
+        System.setErr(new PrintStream(new LogOutputStream(instance.logArea)));
     }
 
     public static void startChecker(String username, String password) {
         fileUtil.saveUserData(username, password);
-        checkerThread = new Thread(() -> {
-            while (checkerThread != null && !checkerThread.isInterrupted() && Main.instance.actionButton.getText().equalsIgnoreCase("Stop")) {
-                if (checkerThread.isAlive()) logMeIn(username, password);
-                try {
-                    Thread.sleep(Duration.ofSeconds(10).toMillis());
-                } catch (Exception exception) {
-                    System.out.println("ERROR > Got an error please report!");
-                    exception.printStackTrace();
+        if (checkerThread != null && checkerThread.isAlive()) {
+            Main.instance.actionButton.setText("Start");
+            checkerThread.interrupt();
+            instance.clearLogs();
+        } else {
+            Main.instance.actionButton.setText("Stop");
+            checkerThread = new Thread(() -> {
+                while (checkerThread != null && !checkerThread.isInterrupted() && Main.instance.actionButton.getText().equalsIgnoreCase("Stop")) {
+                    if (checkerThread.isAlive()) {
+                        logMeIn(username, password);
+                    }
+                    try {
+                        Thread.sleep(Duration.ofSeconds(10).toMillis());
+                    } catch (Exception exception) {
+                        if (!(exception instanceof InterruptedException)) {
+                            System.out.println("ERROR > Got an error please report!");
+                            exception.printStackTrace();
+                        }
+                    }
                 }
-            }
-        });
+            });
+            checkerThread.start();
+        }
 
-        checkerThread.start();
+        instance.updateTrayIcon(false);
     }
 
     public static void logMeIn(String username, String password) {
@@ -120,11 +234,13 @@ public class Main extends JFrame {
 
             HttpResponse<String> httpResponse = httpClient.send(firstDataRequest, HttpResponse.BodyHandlers.ofString());
 
-            if (httpResponse.body().contains("<h3 class=\"headline\">Ticket Anmeldung</h3>")) {
+            String content = httpResponse.body();
+
+            if (content.contains("<h3 class=\"headline\">Ticket Anmeldung</h3>")) {
 
                 System.out.println("INFO > Not logged in. Started Login Attempt!");
 
-                String content = httpResponse.body();
+                long startTime = System.currentTimeMillis();
 
                 if (content.contains("name=\"ta_id\" value=\"")) {
                     Map<Object, Object> data = new HashMap<>();
@@ -138,9 +254,9 @@ public class Main extends JFrame {
                     HttpResponse<String> httpLoginResponse = httpClient.send(loginRequest, HttpResponse.BodyHandlers.ofString());
 
                     if (httpLoginResponse.body().contains("<label class=\"ewc_s_label\"><span class=\"logged-in\">angemeldet</span></label>")) {
-                        System.out.println("SUCCESS > Login successful!");
+                        System.out.println("SUCCESS > Login successful! (" + (System.currentTimeMillis() - startTime) + "ms)");
                     } else {
-                        System.out.println("ERROR > Login try failed!");
+                        System.out.println("ERROR > Login try failed! (" + (System.currentTimeMillis() - startTime) + "ms)");
                     }
                 } else {
                     System.out.println("ERROR > Got an Invalid TID, will skip this try!");
@@ -167,4 +283,64 @@ public class Main extends JFrame {
         return HttpRequest.BodyPublishers.ofString(builder.toString());
     }
 
+    protected static Image createImage(String path, String description) {
+        URL imageURL = Main.class.getResource(path);
+
+        if (imageURL == null) {
+            System.err.println("Resource not found: " + path);
+            return null;
+        } else {
+            return (new ImageIcon(imageURL, description)).getImage();
+        }
+    }
+
+    public void useDarkMode() {
+        this.setBackground(new Color(0x121212));
+        this.setForeground(Color.WHITE);
+
+        usernameField.setBackground(Color.DARK_GRAY.darker());
+        usernameField.setBorder(BorderFactory.createEmptyBorder());
+        usernameField.setForeground(Color.WHITE);
+
+        passwordField.setBackground(Color.DARK_GRAY.darker());
+        passwordField.setBorder(BorderFactory.createEmptyBorder());
+        passwordField.setForeground(Color.WHITE);
+
+        logArea.setForeground(Color.GREEN.darker());
+        logArea.setBackground(Color.DARK_GRAY.darker());
+        logArea.setBorder(BorderFactory.createEmptyBorder());
+
+        actionButton.setBackground(Color.DARK_GRAY.darker());
+        actionButton.setForeground(Color.WHITE);
+
+        switchButton.setBackground(Color.DARK_GRAY.darker());
+        switchButton.setForeground(Color.WHITE);
+    }
+
+    public void useLightMode() {
+        this.setBackground(Color.WHITE);
+        this.setForeground(Color.BLACK);
+
+        usernameField.setBackground(Color.GRAY.brighter());
+        usernameField.setBorder(BorderFactory.createEmptyBorder());
+        usernameField.setForeground(Color.BLACK);
+
+        passwordField.setBackground(Color.GRAY.brighter());
+        passwordField.setBorder(BorderFactory.createEmptyBorder());
+        passwordField.setForeground(Color.BLACK);
+
+        logArea.setForeground(Color.gray);
+        logArea.setBackground(Color.gray.brighter());
+        logArea.setBorder(BorderFactory.createEmptyBorder());
+
+        actionButton.setBackground(Color.gray.brighter());
+        actionButton.setForeground(Color.BLACK);
+
+        switchButton.setBackground(Color.gray.brighter());
+        switchButton.setForeground(Color.BLACK);
+    }
+
+    public void clearLogs() {
+        logArea.setText("");
+    }
 }
