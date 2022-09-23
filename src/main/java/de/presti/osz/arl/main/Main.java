@@ -2,34 +2,27 @@ package de.presti.osz.arl.main;
 
 import de.presti.osz.arl.utils.FileUtil;
 import de.presti.osz.arl.utils.LogOutputStream;
+import okhttp3.*;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLHandshakeException;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.*;
 import javax.swing.*;
 import javax.swing.plaf.synth.SynthLookAndFeel;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static java.util.Arrays.asList;
 
 public class Main extends JFrame {
 
@@ -63,7 +56,8 @@ public class Main extends JFrame {
                 ImageIcon imageIcon = new ImageIcon(new URL("https://findicons.com/files/icons/2831/mono_business_2/256/thumbs_up.png"));
                 trayIcon = new TrayIcon(imageIcon.getImage(), "On God?");
                 trayIcon.setImageAutoSize(true);
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         try {
@@ -196,7 +190,7 @@ public class Main extends JFrame {
         useDarkMode();
     }
 
-    static HttpClient httpClient = HttpClient.newHttpClient();
+    static OkHttpClient httpClient = new OkHttpClient();
     static FileUtil fileUtil = new FileUtil();
     static Thread checkerThread;
 
@@ -254,72 +248,95 @@ public class Main extends JFrame {
             if (debug)
                 System.out.println("INFO > Checking for Login Requirement!");
 
-            HttpRequest firstDataRequest = HttpRequest.newBuilder()
+            Request firstDataRequest = new Request.Builder()
                     .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59")
-                    .uri(new URL("https://wlan-login.oszimt.de/logon/cgi/index.cgi").toURI())
-                    .GET().build();
+                    .url("https://wlan-login.oszimt.de/logon/cgi/index.cgi")
+                    .get().build();
 
-            HttpResponse<String> httpResponse = httpClient.send(firstDataRequest, HttpResponse.BodyHandlers.ofString());
+            try (Response response = httpClient.newCall(firstDataRequest).execute()) {
+                String content = response.body().string();
 
-            String content = httpResponse.body();
+                if (content.contains("<h3 class=\"headline\">Ticket Anmeldung</h3>")) {
 
-            if (content.contains("<h3 class=\"headline\">Ticket Anmeldung</h3>")) {
+                    System.out.println("INFO > Not logged in. Started Login Attempt!");
 
-                System.out.println("INFO > Not logged in. Started Login Attempt!");
+                    long startTime = System.currentTimeMillis();
 
-                long startTime = System.currentTimeMillis();
+                    if (content.contains("name=\"ta_id\" value=\"")) {
+                        Map<Object, Object> data = new HashMap<>();
+                        data.put("ta_id", content.split("name=\"ta_id\" value=\"")[1].split("\"")[0]);
+                        data.put("uid", username);
+                        data.put("pwd", password);
+                        data.put("device_infos", "1032:1920:1080:1920");
+                        data.put("voucher_logon_btn", "Login");
 
-                if (content.contains("name=\"ta_id\" value=\"")) {
-                    Map<Object, Object> data = new HashMap<>();
-                    data.put("ta_id", httpResponse.body().split("name=\"ta_id\" value=\"")[1].split("\"")[0]);
-                    data.put("uid", username);
-                    data.put("pwd", password);
-                    data.put("device_infos", "1032:1920:1080:1920");
-                    data.put("voucher_logon_btn", "Login");
-                    HttpRequest loginRequest = HttpRequest.newBuilder()
-                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59")
-                            .uri(new URL("https://wlan-login.oszimt.de/logon/cgi/index.cgi").toURI())
-                            .header("Content-Type", "application/x-www-form-urlencoded")
-                            .POST(ofFormData(data)).build();
+                        Request loginRequest = new Request.Builder()
+                                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59")
+                                .url("https://wlan-login.oszimt.de/logon/cgi/index.cgi")
+                                .addHeader("Content-Type", "application/x-www-form-urlencoded")
+                                .post(ofFormData(data)).build();
 
-                    HttpResponse<String> httpLoginResponse = httpClient.send(loginRequest, HttpResponse.BodyHandlers.ofString());
-
-                    if (httpLoginResponse.body().contains("<label class=\"ewc_s_label\"><span class=\"logged-in\">angemeldet</span></label>")) {
-                        System.out.println("SUCCESS > Login successful! (" + (System.currentTimeMillis() - startTime) + "ms)");
+                        try (Response httpLoginResponse = httpClient.newCall(loginRequest).execute()) {
+                            if (httpLoginResponse.body().string().contains("<label class=\"ewc_s_label\"><span class=\"logged-in\">angemeldet</span></label>")) {
+                                System.out.println("SUCCESS > Login successful! (" + (System.currentTimeMillis() - startTime) + "ms)");
+                            } else {
+                                System.out.println("ERROR > Login try failed! (" + (System.currentTimeMillis() - startTime) + "ms)");
+                            }
+                        } catch (Exception exception) {
+                            if (exception instanceof SSLHandshakeException) {
+                                failedSSL = true;
+                                System.out.println("SSL failed switching to insecure mode!");
+                                System.out.println("(This impacts your privacy, so consider closing the application until the SSL Issues are fixed!)");
+                                unsafeMode();
+                            } else {
+                                System.out.println("ERROR > Got an error please report!");
+                                exception.printStackTrace();
+                            }
+                        }
                     } else {
-                        System.out.println("ERROR > Login try failed! (" + (System.currentTimeMillis() - startTime) + "ms)");
+                        System.out.println("ERROR > Got an Invalid TID, will skip this try!");
                     }
                 } else {
-                    System.out.println("ERROR > Got an Invalid TID, will skip this try!");
+                    if (debug)
+                        System.out.println("ERROR > You are logged in! No need for logging in again!");
                 }
-            } else {
-                if (debug)
-                    System.out.println("ERROR > You are logged in! No need for logging in again!");
+            } catch (Exception exception) {
+                if (exception instanceof SSLHandshakeException) {
+                    failedSSL = true;
+                    System.out.println("SSL failed switching to insecure mode!");
+                    System.out.println("(This impacts your privacy, so consider closing the application until the SSL Issues are fixed!)");
+                    unsafeMode();
+                } else {
+                    System.out.println("ERROR > Got an error please report!");
+                    exception.printStackTrace();
+                }
             }
         } catch (Exception exception) {
             System.out.println("ERROR > Got an error please report!");
-            if (exception instanceof SSLHandshakeException) {
-                failedSSL = true;
-                httpClient = HttpClient.newBuilder().sslContext(insecureContext()).build();
-                System.out.println("SSL failed switching to insecure mode!");
-                System.out.println("(This impacts your privacy, so consider closing the application until the SSL Issues are fixed!)");
-            } else {
-                exception.printStackTrace();
-            }
+            exception.printStackTrace();
         }
     }
 
-    public static HttpRequest.BodyPublisher ofFormData(Map<Object, Object> data) {
-        var builder = new StringBuilder();
+    public static void unsafeMode() {
+        SSLContext sslContext = insecureContext();
+        SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
+        OkHttpClient.Builder builder = httpClient.newBuilder().sslSocketFactory(sslSocketFactory, (X509TrustManager) getTrustManager()[0]);
+        builder.hostnameVerifier((hostname, session) -> true);
+
+        httpClient = builder.build();
+    }
+
+    public static RequestBody ofFormData(Map<Object, Object> data) throws UnsupportedEncodingException {
+        StringBuilder builder = new StringBuilder();
         for (Map.Entry<Object, Object> entry : data.entrySet()) {
             if (builder.length() > 0) {
                 builder.append("&");
             }
-            builder.append(URLEncoder.encode(entry.getKey().toString(), StandardCharsets.UTF_8));
+            builder.append(URLEncoder.encode(entry.getKey().toString(), StandardCharsets.UTF_8.name()));
             builder.append("=");
-            builder.append(URLEncoder.encode(entry.getValue().toString(), StandardCharsets.UTF_8));
+            builder.append(URLEncoder.encode(entry.getValue().toString(), StandardCharsets.UTF_8.name()));
         }
-        return HttpRequest.BodyPublishers.ofString(builder.toString());
+        return RequestBody.create(builder.toString(), MediaType.get("application/x-www-form-urlencoded"));
     }
 
     protected static Image createImage(String path, String description) {
@@ -383,21 +400,38 @@ public class Main extends JFrame {
         logArea.setText("");
     }
 
-    static SSLContext insecureContext() {
-        TrustManager[] noopTrustManager = new TrustManager[]{
-                new X509TrustManager() {
-                    public void checkClientTrusted(X509Certificate[] xcs, String string) {}
-                    public void checkServerTrusted(X509Certificate[] xcs, String string) {}
-                    public X509Certificate[] getAcceptedIssuers() {
-                        return null;
+    static TrustManager[] trustManager;
+
+    static TrustManager[] getTrustManager() {
+        if (trustManager != null)
+            return trustManager;
+        else
+            return trustManager = new TrustManager[]{
+                    new X509TrustManager() {
+                        @Override
+                        public void checkClientTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                        }
+
+                        @Override
+                        public void checkServerTrusted(java.security.cert.X509Certificate[] chain, String authType) {
+                        }
+
+                        @Override
+                        public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                            return new java.security.cert.X509Certificate[]{};
+                        }
                     }
-                }
-        };
+            };
+    }
+
+    static SSLContext insecureContext() {
+        getTrustManager();
         try {
             SSLContext sc = SSLContext.getInstance("ssl");
-            sc.init(null, noopTrustManager, null);
+            sc.init(null, trustManager, null);
             return sc;
-        } catch (KeyManagementException | NoSuchAlgorithmException ex) {}
+        } catch (KeyManagementException | NoSuchAlgorithmException ignored) {
+        }
         return null;
     }
 }

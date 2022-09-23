@@ -22,7 +22,7 @@ public class FileUtil {
         jsonObject.addProperty("password", Base64.getEncoder().encodeToString(password.getBytes(StandardCharsets.UTF_8)));
 
         try {
-            Files.writeString(new File(directory,"login.creds").toPath(), gson.toJson(jsonObject));
+            Files.write(new File(directory,"login.creds").toPath(), gson.toJson(jsonObject).getBytes(StandardCharsets.UTF_8));
         } catch (Exception exception) {
             System.out.println("ERROR > Couldn't save User data.");
         }
@@ -33,7 +33,7 @@ public class FileUtil {
             File directory = new File(System.getProperty("user.home") + "/osz-imt");
             if (!directory.exists()) directory.mkdirs();
 
-            String read = Files.readString(new File(directory,"login.creds").toPath());
+            String read = String.join("\n", Files.readAllLines(new File(directory,"login.creds").toPath()));
 
             JsonObject jsonObject = JsonParser.parseString(read).getAsJsonObject();
 
