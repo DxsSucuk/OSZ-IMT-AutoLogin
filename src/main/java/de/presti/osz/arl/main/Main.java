@@ -3,21 +3,33 @@ package de.presti.osz.arl.main;
 import de.presti.osz.arl.utils.FileUtil;
 import de.presti.osz.arl.utils.LogOutputStream;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 import javax.swing.*;
-import javax.swing.plaf.nimbus.NimbusLookAndFeel;
 import javax.swing.plaf.synth.SynthLookAndFeel;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.PrintStream;
-import java.net.*;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import static java.util.Arrays.asList;
 
 public class Main extends JFrame {
 
@@ -38,6 +50,12 @@ public class Main extends JFrame {
     TrayIcon trayIcon;
 
     static Main instance;
+
+    static boolean failedSSL;
+
+    static boolean debug;
+
+    String websiteUrl;
 
     public Main() {
         if (trayIcon == null) {
@@ -189,10 +207,14 @@ public class Main extends JFrame {
             instance.passwordField.setText(fileUtil.getUserData()[1]);
         }
 
-        if ((args.length >= 1 && !args[0].equalsIgnoreCase("silent")) || args.length == 0) instance.showUI();
+        List<String> arrayList = Arrays.asList(args);
 
-        if (args.length >= 2 && args[1].equalsIgnoreCase("autorun"))
+        if (!arrayList.contains("-silent")) instance.showUI();
+
+        if (arrayList.contains("-autorun"))
             startChecker(instance.usernameField.getText(), new String(instance.passwordField.getPassword()));
+
+        debug = arrayList.contains("-debug");
 
         System.setOut(new PrintStream(new LogOutputStream(instance.logArea)));
         System.setErr(new PrintStream(new LogOutputStream(instance.logArea)));
@@ -229,8 +251,13 @@ public class Main extends JFrame {
 
     public static void logMeIn(String username, String password) {
         try {
-            System.out.println("INFO > Checking for Login Requirement!");
-            HttpRequest firstDataRequest = HttpRequest.newBuilder().header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59").uri(new URL("https://wlan-login.oszimt.de/logon/cgi/index.cgi").toURI()).GET().build();
+            if (debug)
+                System.out.println("INFO > Checking for Login Requirement!");
+
+            HttpRequest firstDataRequest = HttpRequest.newBuilder()
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59")
+                    .uri(new URL("https://wlan-login.oszimt.de/logon/cgi/index.cgi").toURI())
+                    .GET().build();
 
             HttpResponse<String> httpResponse = httpClient.send(firstDataRequest, HttpResponse.BodyHandlers.ofString());
 
@@ -249,7 +276,11 @@ public class Main extends JFrame {
                     data.put("pwd", password);
                     data.put("device_infos", "1032:1920:1080:1920");
                     data.put("voucher_logon_btn", "Login");
-                    HttpRequest loginRequest = HttpRequest.newBuilder().header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59").uri(new URL("https://wlan-login.oszimt.de/logon/cgi/index.cgi").toURI()).header("Content-Type", "application/x-www-form-urlencoded").POST(ofFormData(data)).build();
+                    HttpRequest loginRequest = HttpRequest.newBuilder()
+                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59")
+                            .uri(new URL("https://wlan-login.oszimt.de/logon/cgi/index.cgi").toURI())
+                            .header("Content-Type", "application/x-www-form-urlencoded")
+                            .POST(ofFormData(data)).build();
 
                     HttpResponse<String> httpLoginResponse = httpClient.send(loginRequest, HttpResponse.BodyHandlers.ofString());
 
@@ -262,11 +293,19 @@ public class Main extends JFrame {
                     System.out.println("ERROR > Got an Invalid TID, will skip this try!");
                 }
             } else {
-                System.out.println("ERROR > You are logged in! No need for logging in again!");
+                if (debug)
+                    System.out.println("ERROR > You are logged in! No need for logging in again!");
             }
         } catch (Exception exception) {
             System.out.println("ERROR > Got an error please report!");
-            exception.printStackTrace();
+            if (exception instanceof SSLHandshakeException) {
+                failedSSL = true;
+                httpClient = HttpClient.newBuilder().sslContext(insecureContext()).build();
+                System.out.println("SSL failed switching to insecure mode!");
+                System.out.println("(This impacts your privacy, so consider closing the application until the SSL Issues are fixed!)");
+            } else {
+                exception.printStackTrace();
+            }
         }
     }
 
@@ -342,5 +381,23 @@ public class Main extends JFrame {
 
     public void clearLogs() {
         logArea.setText("");
+    }
+
+    static SSLContext insecureContext() {
+        TrustManager[] noopTrustManager = new TrustManager[]{
+                new X509TrustManager() {
+                    public void checkClientTrusted(X509Certificate[] xcs, String string) {}
+                    public void checkServerTrusted(X509Certificate[] xcs, String string) {}
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return null;
+                    }
+                }
+        };
+        try {
+            SSLContext sc = SSLContext.getInstance("ssl");
+            sc.init(null, noopTrustManager, null);
+            return sc;
+        } catch (KeyManagementException | NoSuchAlgorithmException ex) {}
+        return null;
     }
 }
