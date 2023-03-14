@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AutoRelogin.MainPage">
+
+    <VerticalStackLayout
+            Spacing="25"
+            Padding="30,0"
+            VerticalOptions="Center" HorizontalOptions="Center">
+
+        <Entry Placeholder="Nutzername" Text="{Binding Username}" MinimumWidthRequest="200" MaximumWidthRequest="200" TextChanged="Entry_TextChanged" />
+        <Entry Placeholder="Passwort"  Text="{Binding Password}" IsPassword="True" MinimumWidthRequest="200" MaximumWidthRequest="200" TextChanged="Entry_TextChanged_1" />
+        <Button Text="Start" Clicked="Button_Clicked" MinimumWidthRequest="150" MaximumWidthRequest="150" />
+        <Button Text="Löschen" Clicked="Button_Clicked_1" MinimumWidthRequest="150" MaximumWidthRequest="150" />
+
+    </VerticalStackLayout>
+
+</ContentPage>

@@ -1,3 +1,7 @@
 # Project exclude paths
 /out/
 /target/
+/.idea/
+/Maui/AutoRelogin/obj/
+/Maui/AutoRelogin/.vs/
+/Maui/AutoRelogin/bin/
