@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
@@ -6,7 +6,7 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap rescap">
 
-  <Identity Name="36933Presti.OSZ-AutoLogin" Publisher="CN=E3001749-22CE-4384-8B1B-A18E677F4088" Version="1.2.4.0" />
+  <Identity Name="36933Presti.OSZ-AutoLogin" Publisher="CN=E3001749-22CE-4384-8B1B-A18E677F4088" Version="1.2.6.0" />
 
   <mp:PhoneIdentity PhoneProductId="af8c468c-0390-4a0c-a56d-702213966d4d" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

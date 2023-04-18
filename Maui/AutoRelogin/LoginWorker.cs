@@ -26,65 +26,76 @@ namespace AutoRelogin
                 return;
             }
 
-            HttpResponseMessage checkResponse = await sharedClient.GetAsync("https://wlan-login.oszimt.de/logon/cgi/index.cgi");
-            string responseString = await checkResponse.Content.ReadAsStringAsync();
-
-            if (responseString.Contains("<h3 class=\"headline\">Ticket Anmeldung</h3>"))
+            if (username.ToLower().Equals("test"))
             {
-                if (responseString.Contains("name=\"ta_id\" value=\""))
+                return;
+            }
+
+            try
+            {
+                HttpResponseMessage checkResponse = await sharedClient.GetAsync("https://wlan-login.oszimt.de/logon/cgi/index.cgi");
+                string responseString = await checkResponse.Content.ReadAsStringAsync();
+
+                if (responseString.Contains("<h3 class=\"headline\">Ticket Anmeldung</h3>"))
                 {
-                    string currentTAID = responseString.Split("name=\"ta_id\" value=\"")[1].Split("\"")[0];
-                    NameValueCollection outgoingQueryString = HttpUtility.ParseQueryString(String.Empty);
-                    outgoingQueryString.Add("ta_id", currentTAID);
-                    outgoingQueryString.Add("uid", username);
-                    outgoingQueryString.Add("pwd", password);
-                    outgoingQueryString.Add("device_infos", "1032:1920:1080:1920");
-                    outgoingQueryString.Add("voucher_logon_btn", "Login");
-                    string postdata = outgoingQueryString.ToString();
-
-                    HttpResponseMessage loginResponse = await sharedClient.PostAsync("https://wlan-login.oszimt.de/logon/cgi/index.cgi",
-                        new StringContent(postdata, Encoding.UTF8, "application/x-www-form-urlencoded"));
-                    string loginResponseString = await loginResponse.Content.ReadAsStringAsync();
-
-                    if (loginResponseString.Contains("<label class=\"ewc_s_label\"><span class=\"logged-in\">angemeldet</span></label>"))
+                    if (responseString.Contains("name=\"ta_id\" value=\""))
                     {
-                        Debug.WriteLine("Login successful");
-                        try
+                        string currentTAID = responseString.Split("name=\"ta_id\" value=\"")[1].Split("\"")[0];
+                        NameValueCollection outgoingQueryString = HttpUtility.ParseQueryString(String.Empty);
+                        outgoingQueryString.Add("ta_id", currentTAID);
+                        outgoingQueryString.Add("uid", username);
+                        outgoingQueryString.Add("pwd", password);
+                        outgoingQueryString.Add("device_infos", "1032:1920:1080:1920");
+                        outgoingQueryString.Add("voucher_logon_btn", "Login");
+                        string postdata = outgoingQueryString.ToString();
+
+                        HttpResponseMessage loginResponse = await sharedClient.PostAsync("https://wlan-login.oszimt.de/logon/cgi/index.cgi",
+                            new StringContent(postdata, Encoding.UTF8, "application/x-www-form-urlencoded"));
+                        string loginResponseString = await loginResponse.Content.ReadAsStringAsync();
+
+                        if (loginResponseString.Contains("<label class=\"ewc_s_label\"><span class=\"logged-in\">angemeldet</span></label>"))
                         {
-                            if (MopupService.IsSupported)
+                            Debug.WriteLine("Login successful");
+                            try
                             {
-                                await MopupService.Instance.PushAsync(new SuccessPopup()
+                                if (MopupService.IsSupported)
                                 {
-                                    Message = "Login success!",
-                                });
+                                    await MopupService.Instance.PushAsync(new SuccessPopup()
+                                    {
+                                        Message = "Login success!",
+                                    });
+                                }
                             }
+                            catch (Exception ex) { }
                         }
-                        catch (Exception ex) { }
+                        else
+                        {
+                            Debug.WriteLine("Login failed");
+                        }
                     }
                     else
                     {
-                        Debug.WriteLine("Login failed");
+                        Debug.WriteLine("No TA_ID found!");
                     }
                 }
                 else
                 {
-                    Debug.WriteLine("No TA_ID found!");
-                }
-            }
-            else
-            {
-                try
-                {
-                    if (MopupService.IsSupported)
+                    try
                     {
-                        await MopupService.Instance.PushAsync(new SuccessPopup()
+                        if (MopupService.IsSupported)
                         {
-                            Message = "Already logged in!",
-                        });
+                            await MopupService.Instance.PushAsync(new SuccessPopup()
+                            {
+                                Message = "Already logged in!",
+                            });
+                        }
                     }
+                    catch (Exception ex) { }
+                    Debug.WriteLine("No Login requirement found!");
                 }
-                catch (Exception ex) { }
-                Debug.WriteLine("No Login requirement found!");
+            } catch (Exception ex)
+            {
+                Debug.WriteLine($"Error: {ex.Message}");
             }
         }
     }

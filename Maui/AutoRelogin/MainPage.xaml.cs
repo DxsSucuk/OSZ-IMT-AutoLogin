@@ -74,9 +74,14 @@ public partial class MainPage : ContentPage
         await configDatabase.SaveItemAsync(passwordEntry);
 
         NetworkAccess networkAccess = Connectivity.Current.NetworkAccess;
+        if (Username.ToLower().Equals("test"))
+        {
+            await DisplayAlert("Notification", "Test account detected, switching to global!", "OK");
+        }
+
         if (!networkAccess.HasFlag(NetworkAccess.ConstrainedInternet) && !networkAccess.HasFlag(NetworkAccess.Internet))
         {
-            await DisplayAlert("Notification", "It looks like you do not have a active connection, please connect to the OSZ-Imt Network!", "OK");
+            await DisplayAlert("Notification", "It looks like you do not have a active connection, please connect to the OSZ-IMT Network!", "OK");
             return;
         }
 

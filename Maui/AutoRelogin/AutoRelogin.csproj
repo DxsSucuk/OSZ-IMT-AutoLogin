@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFrameworks>net7.0-android;net7.0-ios;net7.0-maccatalyst</TargetFrameworks>
@@ -15,7 +15,7 @@
 		<ApplicationTitle>AutoRelogin</ApplicationTitle>
 
 		<!-- App Identifier -->
-		<ApplicationId>com.companyname.autorelogin</ApplicationId>
+		<ApplicationId>de.presti.autorelogin</ApplicationId>
 		<ApplicationIdGuid>d9ce82c4-4360-4398-b541-1885797b4c1f</ApplicationIdGuid>
 
 		<!-- Versions -->
@@ -30,7 +30,7 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
 		<GenerateAppInstallerFile>False</GenerateAppInstallerFile>
 		<AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
-		<AppxSymbolPackageEnabled>False</AppxSymbolPackageEnabled>
+		<AppxSymbolPackageEnabled>True</AppxSymbolPackageEnabled>
 		<GenerateTestArtifacts>False</GenerateTestArtifacts>
 		<GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
 		<HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
@@ -40,36 +40,52 @@
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net7.0-android|AnyCPU'">
 	  <ApplicationId>de.presti.autorelogin</ApplicationId>
 	  <AndroidKeyStore>False</AndroidKeyStore>
+	  <ApplicationDisplayVersion>1.1.1</ApplicationDisplayVersion>
+	  <ApplicationVersion>8</ApplicationVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net7.0-android|AnyCPU'">
 	  <ApplicationId>de.presti.autorelogin</ApplicationId>
 	  <AndroidPackageFormat>apk</AndroidPackageFormat>
 	  <AndroidKeyStore>False</AndroidKeyStore>
+	  <ApplicationDisplayVersion>1.1.1</ApplicationDisplayVersion>
+	  <ApplicationVersion>8</ApplicationVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net7.0-ios|AnyCPU'">
 	  <ApplicationId>de.presti.autorelogin</ApplicationId>
+	  <ApplicationDisplayVersion>1.1.1</ApplicationDisplayVersion>
+	  <ApplicationVersion>8</ApplicationVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net7.0-ios|AnyCPU'">
 	  <ApplicationId>de.presti.autorelogin</ApplicationId>
+	  <ApplicationDisplayVersion>1.1.1</ApplicationDisplayVersion>
+	  <ApplicationVersion>8</ApplicationVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net7.0-maccatalyst|AnyCPU'">
 	  <ApplicationId>de.presti.autorelogin</ApplicationId>
+	  <ApplicationDisplayVersion>1.1.1</ApplicationDisplayVersion>
+	  <ApplicationVersion>8</ApplicationVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net7.0-maccatalyst|AnyCPU'">
 	  <ApplicationId>de.presti.autorelogin</ApplicationId>
+	  <ApplicationDisplayVersion>1.1.1</ApplicationDisplayVersion>
+	  <ApplicationVersion>8</ApplicationVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net7.0-windows10.0.19041.0|AnyCPU'">
 	  <ApplicationId>de.presti.autorelogin</ApplicationId>
+	  <ApplicationDisplayVersion>1.1.1</ApplicationDisplayVersion>
+	  <ApplicationVersion>8</ApplicationVersion>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net7.0-windows10.0.19041.0|AnyCPU'">
 	  <ApplicationId>de.presti.autorelogin</ApplicationId>
+	  <ApplicationDisplayVersion>1.1.1</ApplicationDisplayVersion>
+	  <ApplicationVersion>8</ApplicationVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
